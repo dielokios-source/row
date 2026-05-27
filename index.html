@@ -593,6 +593,128 @@ body::after {
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
+
+/* ===== Sleep Tracker ===== */
+.sleep-card {
+  background: rgba(255,255,255,0.04);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 22px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+}
+.sleep-eyebrow {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px;
+}
+.sleep-eyebrow::before {
+  content: ''; width: 18px; height: 1px;
+  background: var(--text-tertiary); opacity: 0.6;
+}
+.sleep-eyebrow::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent);
+}
+.sleep-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sleep-col-head {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 8px; padding-left: 2px;
+}
+.sleep-field { margin-bottom: 8px; }
+.sleep-label {
+  display: block;
+  font-size: 10px; color: var(--text-tertiary);
+  font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.sleep-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.28);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 15px; font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+  color-scheme: dark;
+}
+.sleep-input:focus {
+  border-color: rgba(255,255,255,0.28);
+  background: rgba(0,0,0,0.36);
+}
+.sleep-score-wrap {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.20);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.sleep-score-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.sleep-score-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.sleep-score-num {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.sleep-bar-track {
+  height: 5px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.sleep-bar-fill {
+  height: 100%; width: 0%;
+  background: var(--success);
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.22,1,0.36,1), background 0.4s;
+}
+.sleep-bar-fill.warn { background: var(--warning); }
+.sleep-bar-fill.bad  { background: var(--danger); }
+.sleep-detail {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-tertiary);
+  line-height: 1.6;
+}
+.sleep-save-btn {
+  width: 100%; margin-top: 14px;
+  padding: 11px;
+  border: 0; border-radius: 12px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%);
+  color: #0A0A0B;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.9),
+    0 2px 8px rgba(0,0,0,0.35),
+    0 8px 22px rgba(0,0,0,0.25);
+  transition: transform 0.1s, filter 0.15s;
+}
+.sleep-save-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.sleep-save-btn:active { transform: translateY(0); }
+@media (max-width: 480px) {
+  .sleep-input { font-size: 14px; padding: 9px 10px; }
+}
+
 </style>
 </head>
 <body>
@@ -637,6 +759,47 @@ body::after {
       <div class="day-ring-remaining" id="dayRingRemaining">—</div>
       <div class="day-ring-hours">8:00 AM – 12:00 AM</div>
     </div>
+  </div>
+
+
+  <!-- ===== Sleep Tracker ===== -->
+  <div class="sleep-card" id="sleepCard">
+    <div class="sleep-eyebrow">Sleep</div>
+    <div class="sleep-grid">
+      <div>
+        <div class="sleep-col-head">Planned</div>
+        <div class="sleep-field">
+          <label class="sleep-label" for="slpPlanBed">Bedtime</label>
+          <input class="sleep-input" type="time" id="slpPlanBed" />
+        </div>
+        <div class="sleep-field">
+          <label class="sleep-label" for="slpPlanWake">Wake</label>
+          <input class="sleep-input" type="time" id="slpPlanWake" />
+        </div>
+      </div>
+      <div>
+        <div class="sleep-col-head">Actual</div>
+        <div class="sleep-field">
+          <label class="sleep-label" for="slpActBed">Bedtime</label>
+          <input class="sleep-input" type="time" id="slpActBed" />
+        </div>
+        <div class="sleep-field">
+          <label class="sleep-label" for="slpActWake">Wake</label>
+          <input class="sleep-input" type="time" id="slpActWake" />
+        </div>
+      </div>
+    </div>
+    <div class="sleep-score-wrap">
+      <div class="sleep-score-row">
+        <span class="sleep-score-label">Adherence Score</span>
+        <span class="sleep-score-num" id="sleepScoreNum">—</span>
+      </div>
+      <div class="sleep-bar-track">
+        <div class="sleep-bar-fill" id="sleepBarFill"></div>
+      </div>
+      <div class="sleep-detail" id="sleepDetail">Set planned times tonight · log actuals in the morning.</div>
+    </div>
+    <button class="sleep-save-btn" id="sleepSaveBtn">Save Sleep Log</button>
   </div>
 
   <div class="section">
@@ -1319,6 +1482,152 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 });
+
+// ── Sleep Tracker ──────────────────────────────────────────────────────────
+(function () {
+  'use strict';
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function todayKey() {
+    const now = new Date();
+    const d   = now.getHours() < 6 ? new Date(now.getTime() - 864e5) : now;
+    return 'sleep:' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  function slpLoad() {
+    try { return JSON.parse(localStorage.getItem(todayKey())) || {}; } catch { return {}; }
+  }
+  function slpSave(v) { localStorage.setItem(todayKey(), JSON.stringify(v)); }
+
+  // "HH:MM" → minutes since midnight (null if empty)
+  function toMins(t) {
+    if (!t) return null;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  // Absolute drift in minutes, midnight-crossing aware
+  function drift(planned, actual) {
+    if (planned === null || actual === null) return null;
+    let d = Math.abs(actual - planned);
+    if (d > 720) d = 1440 - d;
+    return d;
+  }
+
+  // Signed drift: positive = late, negative = early
+  function signedDrift(planned, actual) {
+    if (planned === null || actual === null) return null;
+    let d = actual - planned;
+    if (d > 720)  d -= 1440;
+    if (d < -720) d += 1440;
+    return d;
+  }
+
+  // Sleep duration bed→wake in minutes (handles next-day wake)
+  function calcDuration(bed, wake) {
+    const b = toMins(bed);
+    const w = toMins(wake);
+    if (b === null || w === null) return null;
+    let dur = w - b;
+    if (dur <= 0) dur += 1440;
+    return dur;
+  }
+
+  function fmtDuration(mins) {
+    if (mins === null) return null;
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? h + 'h ' + m + 'm' : h + 'h';
+  }
+
+  // Score: each side worth 50 pts; −12.5 pts per 15-min drift; floor 0
+  function calcScore(pBed, pWake, aBed, aWake) {
+    const bd = drift(toMins(pBed),  toMins(aBed));
+    const wd = drift(toMins(pWake), toMins(aWake));
+    if (bd === null && wd === null) return null;
+    const bs = bd !== null ? Math.max(0, 50 - Math.floor(bd / 15) * 12.5) : 50;
+    const ws = wd !== null ? Math.max(0, 50 - Math.floor(wd / 15) * 12.5) : 50;
+    return Math.round(bs + ws);
+  }
+
+  function fmtDrift(mins) {
+    if (mins === null) return null;
+    if (mins === 0) return 'on time';
+    return (mins > 0 ? '+' : '−') + Math.abs(mins) + ' min';
+  }
+
+  function render() {
+    const pBed  = document.getElementById('slpPlanBed').value;
+    const pWake = document.getElementById('slpPlanWake').value;
+    const aBed  = document.getElementById('slpActBed').value;
+    const aWake = document.getElementById('slpActWake').value;
+
+    const scoreEl  = document.getElementById('sleepScoreNum');
+    const barEl    = document.getElementById('sleepBarFill');
+    const detailEl = document.getElementById('sleepDetail');
+
+    if (!aBed && !aWake) {
+      scoreEl.textContent  = '—';
+      barEl.style.width    = '0%';
+      barEl.className      = 'sleep-bar-fill';
+      const pDur = fmtDuration(calcDuration(pBed, pWake));
+      detailEl.textContent = pDur
+        ? 'Planned: ' + pDur + ' · Log actuals when you wake.'
+        : 'Enter tonight\'s planned bedtime and wake time, then log actuals in the morning.';
+      return;
+    }
+
+    const score = calcScore(pBed, pWake, aBed, aWake);
+    if (score === null) { scoreEl.textContent = '—'; return; }
+
+    scoreEl.textContent = score + '%';
+    barEl.style.width   = score + '%';
+    barEl.className     = 'sleep-bar-fill' +
+      (score >= 75 ? '' : score >= 50 ? ' warn' : ' bad');
+
+    const parts = [];
+    const aDur = fmtDuration(calcDuration(aBed, aWake));
+    const pDur = fmtDuration(calcDuration(pBed, pWake));
+    if (aDur) parts.push(aDur + ' sleep' + (pDur ? ' (planned ' + pDur + ')' : ''));
+    const bd = fmtDrift(signedDrift(toMins(pBed),  toMins(aBed)));
+    const wd = fmtDrift(signedDrift(toMins(pWake), toMins(aWake)));
+    if (bd) parts.push('Bed: ' + bd);
+    if (wd) parts.push('Wake: ' + wd);
+    detailEl.textContent = parts.length ? parts.join(' · ') : 'Perfect adherence';
+  }
+
+  function boot() {
+    const s = slpLoad();
+    if (s.pBed)  document.getElementById('slpPlanBed').value  = s.pBed;
+    if (s.pWake) document.getElementById('slpPlanWake').value = s.pWake;
+    if (s.aBed)  document.getElementById('slpActBed').value   = s.aBed;
+    if (s.aWake) document.getElementById('slpActWake').value  = s.aWake;
+    render();
+  }
+
+  ['slpPlanBed', 'slpPlanWake', 'slpActBed', 'slpActWake'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', render);
+  });
+
+  document.getElementById('sleepSaveBtn').addEventListener('click', function () {
+    slpSave({
+      pBed:  document.getElementById('slpPlanBed').value,
+      pWake: document.getElementById('slpPlanWake').value,
+      aBed:  document.getElementById('slpActBed').value,
+      aWake: document.getElementById('slpActWake').value,
+    });
+    render();
+    var btn  = document.getElementById('sleepSaveBtn');
+    var orig = btn.textContent;
+    btn.textContent = '✓ Saved';
+    setTimeout(function () { btn.textContent = orig; }, 1800);
+  });
+
+  boot();
+})();
+// ───────────────────────────────────────────────────────────────────────────
+
 </script>
 </body>
 </html>
