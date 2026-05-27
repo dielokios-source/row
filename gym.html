@@ -1725,6 +1725,17 @@ img, video, canvas, svg { max-width: 100%; }
         (x === 'rest' ? 'Rest' : x.charAt(0).toUpperCase() + x.slice(1))
       );
     }
+    // Migrate old Push/Pull/Legs names to Upper Body/Legs — deduplicates so
+    // Push+Pull both become one "Upper Body" entry.
+    if (Array.isArray(s.splitRotation)) {
+      const RENAME = { push: 'Upper Body', pull: 'Upper Body', legs: 'Legs' };
+      const migrated = [], seen = new Set();
+      for (const name of s.splitRotation) {
+        const mapped = RENAME[name.toLowerCase()] || name;
+        if (!seen.has(mapped)) { migrated.push(mapped); seen.add(mapped); }
+      }
+      if (migrated.length) s.splitRotation = migrated;
+    }
     if (!s.splitAnchor || !s.splitAnchor.date || s.splitAnchor.index == null) {
       // Map old anchor-by-id to new anchor-by-index, or default to today=index 0.
       const oldId = (CONFIG.splitAnchor && CONFIG.splitAnchor.splitId) || null;

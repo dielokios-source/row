@@ -757,7 +757,7 @@ body::after {
     <div class="day-ring-text">
       <div class="day-ring-status"    id="dayRingStatus">Loading…</div>
       <div class="day-ring-remaining" id="dayRingRemaining">—</div>
-      <div class="day-ring-hours">8:00 AM – 12:00 AM</div>
+      <div class="day-ring-hours" id="dayRingHours">8:00 AM – 12:00 AM</div>
     </div>
   </div>
 
@@ -863,8 +863,32 @@ body::after {
   // Paste your Anthropic key here to enable ✨ Polish. Empty = falls back to plain add.
   const ANTHROPIC_API_KEY = '';
 
-  const WAKE_HOUR  = 8;
-  const SLEEP_HOUR = 24;
+  // Read planned wake/bed from today's sleep log; fall back to 8am/midnight.
+  function getSchedule() {
+    const now = new Date();
+    const d   = now.getHours() < 6 ? new Date(now.getTime() - 864e5) : now;
+    const key = 'sleep:' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
+    let wakeHour  = 8;
+    let sleepHour = 24;
+    if (stored && stored.pWake) {
+      const p = stored.pWake.split(':').map(Number);
+      wakeHour = p[0] + p[1] / 60;
+    }
+    if (stored && stored.pBed) {
+      const p = stored.pBed.split(':').map(Number);
+      sleepHour = p[0] + p[1] / 60;
+      if (sleepHour <= wakeHour) sleepHour += 24; // next-day bedtime
+    }
+    return { wakeHour, sleepHour };
+  }
+  function fmtHour(h) {
+    h = ((h % 24) + 24) % 24;
+    const hh = Math.floor(h), mm = Math.round((h - hh) * 60);
+    const ampm = hh < 12 ? 'AM' : 'PM';
+    return ((hh % 12) || 12) + ':' + pad2(mm) + ' ' + ampm;
+  }
 
   // ---------- storage helpers ----------
   function storeGet(key) {
@@ -1083,6 +1107,7 @@ body::after {
   fillEl.setAttribute('stroke-dashoffset', C);
 
   function updateDayRing() {
+    const { wakeHour, sleepHour } = getSchedule();
     const now = new Date();
     const hours = now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
     const percentEl   = document.getElementById('dayRingPercent');
@@ -1090,21 +1115,23 @@ body::after {
     const clockEl     = document.getElementById('dayRingClock');
     const statusEl    = document.getElementById('dayRingStatus');
     const remainingEl = document.getElementById('dayRingRemaining');
+    const hoursEl     = document.getElementById('dayRingHours');
 
     clockEl.textContent = formatClock(now);
+    if (hoursEl) hoursEl.textContent = fmtHour(wakeHour) + ' – ' + fmtHour(sleepHour);
 
-    if (hours < WAKE_HOUR) {
+    if (hours < wakeHour) {
       fillEl.setAttribute('stroke-dashoffset', C);
       fillEl.style.stroke = '#4D4B47';
       percentEl.textContent = '—';
       phaseEl.textContent   = 'SLEEPING';
       statusEl.textContent  = '😴 Still sleeping';
-      const minsUntil = (WAKE_HOUR - hours) * 60;
+      const minsUntil = (wakeHour - hours) * 60;
       remainingEl.textContent = formatRemaining(minsUntil) + ' until wake-up';
       return;
     }
 
-    if (hours >= SLEEP_HOUR) {
+    if (hours >= sleepHour) {
       fillEl.setAttribute('stroke-dashoffset', 0);
       fillEl.style.stroke = '#E25D7A';
       percentEl.textContent = '100%';
@@ -1114,8 +1141,8 @@ body::after {
       return;
     }
 
-    const span = SLEEP_HOUR - WAKE_HOUR;
-    const percent = (hours - WAKE_HOUR) / span * 100;
+    const span = sleepHour - wakeHour;
+    const percent = (hours - wakeHour) / span * 100;
     fillEl.setAttribute('stroke-dashoffset', C * (1 - percent / 100));
     fillEl.style.stroke = rgb(paletteAt(percent));
     percentEl.textContent = Math.floor(percent) + '%';
@@ -1129,7 +1156,7 @@ body::after {
     phaseEl.textContent  = phase;
     statusEl.textContent = status;
 
-    const minsLeft = (SLEEP_HOUR - hours) * 60;
+    const minsLeft = (sleepHour - hours) * 60;
     remainingEl.textContent = formatRemaining(minsLeft) + ' awake time left';
   }
 
