@@ -488,7 +488,7 @@ main {
     <div class="stack-head">
       <div class="sf-eyebrow">Daily stack</div>
       <div class="sf-title">Tap each as you take it</div>
-      <div class="stack-progress-text" id="stackProgressText">— / — taken today · resets at 6 AM</div>
+      <div class="stack-progress-text" id="stackProgressText">— / — taken today · resets at midnight</div>
     </div>
 
     <div class="stack-progress-track">
@@ -531,9 +531,10 @@ main {
   const storeGet = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const storeSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
+  const STACK_RESET_HOUR = 0; // midnight reset (change to e.g. 6 for 6am reset)
   function getActiveDate() {
     const now = new Date();
-    if (now.getHours() < 6) now.setDate(now.getDate() - 1);
+    if (STACK_RESET_HOUR > 0 && now.getHours() < STACK_RESET_HOUR) now.setDate(now.getDate() - 1);
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
@@ -706,7 +707,7 @@ main {
     const totalCount = items.length;
     const takenCount = items.filter(i => taken[i.id]).length;
     document.getElementById('stackProgressText').textContent =
-      `${takenCount} / ${totalCount} taken today · resets at 6 AM`;
+      `${takenCount} / ${totalCount} taken today · resets at midnight`;
     const pct = totalCount === 0 ? 0 : (takenCount / totalCount) * 100;
     document.getElementById('stackProgressBar').style.width = pct + '%';
 

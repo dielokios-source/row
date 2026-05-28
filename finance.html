@@ -1728,9 +1728,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </div>
 </div>
 
-<!-- ===== ACTIVE SUBSCRIPTIONS ===== -->
+<!-- ===== SALARY / SUBS ===== -->
 <div class="section" data-section="subs">
   <div class="section-title">
+    <span class="section-title-text">SALARY / SUBSCRIPTIONS</span>
+  </div>
+
+  <!-- Salary card -->
+  <div class="card" style="margin-bottom:16px;background:rgba(110,231,183,0.06);border:1px solid rgba(110,231,183,0.18)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;font-weight:500">Monthly salary</div>
+        <div id="salaryDisplay" style="font-size:28px;font-weight:700;color:var(--text-primary);line-height:1.1;margin-top:2px">CHF 0</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="salaryInput" min="0" step="100" placeholder="Monthly amount (CHF)" inputmode="decimal"
+        style="flex:1;padding:11px 14px;border:1px solid rgba(255,255,255,0.10);border-radius:12px;background:rgba(0,0,0,0.28);color:var(--text-primary);font-family:inherit;font-size:14px;outline:none;color-scheme:dark">
+      <button id="salarySaveBtn"
+        style="padding:11px 20px;border:0;border-radius:12px;background:linear-gradient(180deg,#FFFFFF 0%,#E8E5DD 100%);color:#0A0A0B;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
+        Save
+      </button>
+    </div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-top:8px;line-height:1.4">
+      Enter your monthly salary in CHF. This amount is added to your net worth total.
+    </div>
+  </div>
+
+  <!-- Active subscriptions -->
+  <div class="section-title" style="margin-top:8px">
     <span class="section-title-text">ACTIVE SUBSCRIPTIONS</span>
   </div>
   <div class="card" style="background:linear-gradient(135deg, rgba(83,74,183,0.07), rgba(216,90,48,0.05));border:1px solid rgba(83,74,183,0.20)">
@@ -1874,7 +1900,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </button>
   <button class="bot-tab" data-tab="subs">
     <span class="bot-tab-icon">🔁</span>
-    <span class="bot-tab-label">Subs</span>
+    <span class="bot-tab-label">Salary / Subs</span>
   </button>
   <button class="bot-tab" data-tab="incoming">
     <span class="bot-tab-icon">📦</span>
@@ -2077,6 +2103,37 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     input.addEventListener('blur', save);
   }
 
+  const SALARY_KEY = 'nw:salary';
+  function getSalary() { return Number(storeGet(SALARY_KEY)) || 0; }
+  function setSalary(v) { storeSet(SALARY_KEY, v); }
+  function renderSalary() {
+    const symbol = currencyEl ? currencyEl.value : 'CHF';
+    const rate = exchangeRates[symbol] || 1;
+    const salChf = getSalary();
+    const disp = salChf * rate;
+    const el = document.getElementById('salaryDisplay');
+    if (el) el.textContent = symbol + ' ' + Math.round(disp).toLocaleString();
+    const inp = document.getElementById('salaryInput');
+    if (inp && document.activeElement !== inp) inp.placeholder = 'Monthly amount (' + symbol + ')';
+  }
+  (function wireSalary() {
+    const btn = document.getElementById('salarySaveBtn');
+    const inp = document.getElementById('salaryInput');
+    if (!btn || !inp) return;
+    const stored = getSalary();
+    if (stored > 0) inp.value = Math.round(stored);
+    btn.addEventListener('click', () => {
+      const val = parseFloat(inp.value) || 0;
+      setSalary(val);
+      renderSalary();
+      renderAllNetWorth();
+      const orig = btn.textContent;
+      btn.textContent = '✓ Saved';
+      setTimeout(() => { btn.textContent = orig; }, 1800);
+    });
+    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') btn.click(); });
+  })();
+
   function renderAllNetWorth() {
     let grand = 0;
     const breakdown = [];
@@ -2087,6 +2144,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       sliceTotals[cat.key] = sub;
       if (sub > 0) breakdown.push(cat.key + ': ' + fmtMoney(sub));
     });
+    const salChf = getSalary();
+    if (salChf > 0) {
+      grand += salChf;
+      breakdown.unshift('Salary: ' + fmtMoney(salChf));
+    }
+    renderSalary();
     if (netWorthTotal) netWorthTotal.textContent = fmtMoney(grand);
     if (netWorthBreakdown) netWorthBreakdown.textContent = breakdown.join('  •  ');
     logNetWorthSnapshot(grand);
@@ -3382,7 +3445,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'finance',
-    syncedKeys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency', 'nw:activity', 'nw:history'],
+    syncedKeys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency', 'nw:activity', 'nw:history', 'nw:salary'],
     syncedPrefixes: ['nw:'],
     onApplied: function () { window.dispatchEvent(new Event('storage')); }
   });

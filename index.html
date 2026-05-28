@@ -564,20 +564,27 @@ body::after {
 .gm-add:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .gm-add:active { transform: translateY(0); }
 
-.gm-polish {
-  padding: 11px 18px;
-  border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.04);
-  color: var(--text-primary);
-  font-family: inherit; font-size: 13px; font-weight: 600;
+.gm-urgency-btn {
+  width: 14px; height: 14px; min-width: 14px; min-height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.22);
+  background: transparent;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.gm-polish:hover {
-  background: rgba(255,255,255,0.07);
-  border-color: rgba(255,255,255,0.18);
+.gm-urgency-btn[data-urgency="medium"] {
+  background: #F97316; border-color: #F97316;
+  box-shadow: 0 0 5px rgba(249,115,22,0.55);
 }
+.gm-urgency-btn[data-urgency="urgent"] {
+  background: #EF4444; border-color: #EF4444;
+  box-shadow: 0 0 5px rgba(239,68,68,0.65);
+}
+.gm-urgency-btn:disabled { cursor: not-allowed; opacity: 0.4; }
+.gm-row[data-urgency="medium"] { border-left: 3px solid #F97316; padding-left: 9px; }
+.gm-row[data-urgency="urgent"] { border-left: 3px solid #EF4444; padding-left: 9px; }
 
 .gm-status {
   flex-basis: 100%;
@@ -711,6 +718,10 @@ body::after {
 }
 .sleep-save-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .sleep-save-btn:active { transform: translateY(0); }
+.sleep-btn-row {
+  display: flex; gap: 8px; margin-top: 14px;
+}
+.sleep-btn-row .sleep-save-btn { flex: 1; margin-top: 0; }
 @media (max-width: 480px) {
   .sleep-input { font-size: 14px; padding: 9px 10px; }
 }
@@ -799,7 +810,10 @@ body::after {
       </div>
       <div class="sleep-detail" id="sleepDetail">Set planned times tonight · log actuals in the morning.</div>
     </div>
-    <button class="sleep-save-btn" id="sleepSaveBtn">Save Sleep Log</button>
+    <div class="sleep-btn-row">
+      <button class="sleep-save-btn" id="sleepPlanSaveBtn">Save Plan</button>
+      <button class="sleep-save-btn" id="sleepSaveBtn">Save Today's Log</button>
+    </div>
   </div>
 
   <div class="section">
@@ -828,9 +842,7 @@ body::after {
       <button type="button" id="gmPushBtn" class="gm-push-btn" style="display:none;">Push remaining to tomorrow</button>
       <div class="goal-input-wrap gm-input-wrap">
         <input id="goalInput" class="gm-input" type="text" placeholder="Add a goal for today…" autocomplete="off">
-        <button type="button" id="goalAddBtn"    class="gm-add">+ Add</button>
-        <button type="button" id="goalPolishBtn" class="gm-polish">✨ Polish</button>
-        <div class="gm-status" id="polishStatus"></div>
+        <button type="button" id="goalAddBtn" class="gm-add">+ Add</button>
       </div>
     </div>
 
@@ -847,9 +859,7 @@ body::after {
       <div id="tomorrowEmpty" class="empty-state">Nothing planned for tomorrow yet</div>
       <div class="goal-input-wrap gm-input-wrap">
         <input id="tomorrowInput" class="gm-input" type="text" placeholder="Add a goal for tomorrow…" autocomplete="off">
-        <button type="button" id="tomorrowAddBtn"    class="gm-add">+ Add</button>
-        <button type="button" id="tomorrowPolishBtn" class="gm-polish">✨ Polish</button>
-        <div class="gm-status" id="tomorrowStatus"></div>
+        <button type="button" id="tomorrowAddBtn" class="gm-add">+ Add</button>
       </div>
     </div>
   </div>
@@ -860,16 +870,16 @@ body::after {
 (function () {
   'use strict';
 
-  // Paste your Anthropic key here to enable ✨ Polish. Empty = falls back to plain add.
-  const ANTHROPIC_API_KEY = '';
-
   // Read planned wake/bed from today's sleep log; fall back to 8am/midnight.
   function getSchedule() {
-    const now = new Date();
-    const d   = now.getHours() < 6 ? new Date(now.getTime() - 864e5) : now;
-    const key = 'sleep:' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
     let stored = null;
-    try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
+    try { stored = JSON.parse(localStorage.getItem('sleep:plan')); } catch {}
+    if (!stored || (!stored.pWake && !stored.pBed)) {
+      const now = new Date();
+      const d   = now.getHours() < 6 ? new Date(now.getTime() - 864e5) : now;
+      const key = 'sleep:' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+      try { stored = JSON.parse(localStorage.getItem(key)); } catch {}
+    }
     let wakeHour  = 8;
     let sleepHour = 24;
     if (stored && stored.pWake) {
@@ -1227,11 +1237,29 @@ body::after {
     li.dataset.idx = String(idx);
     if (goal.done) li.classList.add('gm-row-done');
     if (goal.queued) li.classList.add('gm-row-queued');
+    const urgency = goal.urgency || 'neutral';
+    if (urgency !== 'neutral') li.dataset.urgency = urgency;
 
     const handle = document.createElement('span');
     handle.className = 'gm-handle';
     handle.textContent = '⋮⋮';
     li.appendChild(handle);
+
+    const urgencyBtn = document.createElement('button');
+    urgencyBtn.type = 'button';
+    urgencyBtn.className = 'gm-urgency-btn';
+    urgencyBtn.dataset.urgency = urgency;
+    urgencyBtn.title = 'Urgency: ' + urgency + ' (click to change)';
+    if (readOnly) urgencyBtn.disabled = true;
+    urgencyBtn.addEventListener('click', () => {
+      const list = getGoals(key);
+      if (!list[idx]) return;
+      const cycle = { neutral: 'medium', medium: 'urgent', urgent: 'neutral' };
+      list[idx].urgency = cycle[list[idx].urgency || 'neutral'];
+      setGoals(key, list);
+      reload();
+    });
+    li.appendChild(urgencyBtn);
 
     const cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -1392,45 +1420,11 @@ body::after {
     loadToday(); loadTomorrow();
   });
 
-  // ---------- Add + Polish handlers ----------
-  function showStatus(el, message, isError) {
-    el.textContent = message;
-    el.classList.toggle('gm-status-error', !!isError);
-    clearTimeout(el._t);
-    el._t = setTimeout(() => { el.textContent = ''; el.classList.remove('gm-status-error'); }, 3500);
-  }
-
-  async function polishOne(text) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content:
-            'Rewrite this single goal so it is concrete, action-oriented, and under 60 characters. ' +
-            'Return ONLY a JSON array with exactly one string, no preamble, no code fences.\n\nGoal: ' + text
-        }]
-      })
-    });
-    const data = await res.json();
-    const content = (data && data.content && data.content[0] && data.content[0].text) || '';
-    const arr = JSON.parse(content);
-    if (!Array.isArray(arr) || arr.length < 1 || typeof arr[0] !== 'string') throw new Error('bad response');
-    return arr[0].trim();
-  }
-
-  function makeAddHandlers(input, addBtn, polishBtn, key, statusEl, reload) {
+  // ---------- Add handlers ----------
+  function makeAddHandlers(input, addBtn, key, reload) {
     function plainAdd(text) {
       const list = getGoals(key);
-      list.push({ text, done: false });
+      list.push({ text, done: false, urgency: 'neutral' });
       setGoals(key, list);
       input.value = '';
       reload();
@@ -1443,41 +1437,18 @@ body::after {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); addBtn.click(); }
     });
-    polishBtn.addEventListener('click', async () => {
-      const text = input.value.trim();
-      if (!text) return;
-      if (!ANTHROPIC_API_KEY) {
-        plainAdd(text);
-        showStatus(statusEl, 'Polish needs an Anthropic API key — added as-typed.', false);
-        return;
-      }
-      polishBtn.disabled = true;
-      try {
-        const polished = await polishOne(text);
-        plainAdd(polished);
-      } catch (e) {
-        plainAdd(text);
-        showStatus(statusEl, 'Polish failed — added as-typed.', true);
-      } finally {
-        polishBtn.disabled = false;
-      }
-    });
   }
 
   makeAddHandlers(
     document.getElementById('goalInput'),
     document.getElementById('goalAddBtn'),
-    document.getElementById('goalPolishBtn'),
     todayKey(),
-    document.getElementById('polishStatus'),
     loadToday
   );
   makeAddHandlers(
     document.getElementById('tomorrowInput'),
     document.getElementById('tomorrowAddBtn'),
-    document.getElementById('tomorrowPolishBtn'),
     tomorrowKey(),
-    document.getElementById('tomorrowStatus'),
     loadTomorrow
   );
 
@@ -1516,11 +1487,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function pad2(n) { return String(n).padStart(2, '0'); }
 
+  const PLAN_KEY = 'sleep:plan';
+
   function todayKey() {
     const now = new Date();
-    const d   = now.getHours() < 6 ? new Date(now.getTime() - 864e5) : now;
-    return 'sleep:' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    return 'sleep:' + now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
   }
+
+  function slpPlanLoad() {
+    try { return JSON.parse(localStorage.getItem(PLAN_KEY)) || {}; } catch { return {}; }
+  }
+  function slpPlanSave(v) { localStorage.setItem(PLAN_KEY, JSON.stringify(v)); }
 
   function slpLoad() {
     try { return JSON.parse(localStorage.getItem(todayKey())) || {}; } catch { return {}; }
@@ -1625,11 +1602,14 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function boot() {
-    const s = slpLoad();
-    if (s.pBed)  document.getElementById('slpPlanBed').value  = s.pBed;
-    if (s.pWake) document.getElementById('slpPlanWake').value = s.pWake;
-    if (s.aBed)  document.getElementById('slpActBed').value   = s.aBed;
-    if (s.aWake) document.getElementById('slpActWake').value  = s.aWake;
+    const plan  = slpPlanLoad();
+    const today = slpLoad();
+    // Planned: from sleep:plan; fall back to today's date key (migration)
+    document.getElementById('slpPlanBed').value  = plan.pBed  || today.pBed  || '';
+    document.getElementById('slpPlanWake').value = plan.pWake || today.pWake || '';
+    // Actual: from today's date key
+    document.getElementById('slpActBed').value   = today.aBed  || '';
+    document.getElementById('slpActWake').value  = today.aWake || '';
     render();
   }
 
@@ -1637,10 +1617,19 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById(id).addEventListener('change', render);
   });
 
-  document.getElementById('sleepSaveBtn').addEventListener('click', function () {
-    slpSave({
+  document.getElementById('sleepPlanSaveBtn').addEventListener('click', function () {
+    slpPlanSave({
       pBed:  document.getElementById('slpPlanBed').value,
       pWake: document.getElementById('slpPlanWake').value,
+    });
+    var btn = document.getElementById('sleepPlanSaveBtn');
+    var orig = btn.textContent;
+    btn.textContent = '✓ Saved';
+    setTimeout(function () { btn.textContent = orig; }, 1800);
+  });
+
+  document.getElementById('sleepSaveBtn').addEventListener('click', function () {
+    slpSave({
       aBed:  document.getElementById('slpActBed').value,
       aWake: document.getElementById('slpActWake').value,
     });

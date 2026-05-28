@@ -218,6 +218,23 @@ html, body {
   font-style: italic;
 }
 .water-helper.good { color: var(--good); font-style: normal; }
+.ml-input-row {
+  display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: stretch;
+}
+.ml-input {
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text-1);
+  font-family: var(--font); font-size: 18px; font-weight: 700;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
+}
+.ml-input::placeholder { color: var(--text-3); font-weight: 400; }
+.ml-input:focus { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.09); }
+.ml-add-btn { font-size: 14px; font-weight: 700; }
 
 /* ----- Why this target? collapsible ----- */
 .why-toggle {
@@ -502,6 +519,10 @@ html, body {
         <span>↑</span>
       </button>
     </div>
+    <div class="ml-input-row" id="mlInputRow" style="display:none">
+      <input class="ml-input" type="number" id="mlAmountInput" min="1" max="5000" step="1" placeholder="ml" inputmode="numeric">
+      <button class="water-plus-btn ml-add-btn" id="mlAddBtn" type="button">Add ml ↑</button>
+    </div>
     <div class="water-helper" id="waterHelper">Start the day — first one in.</div>
 
     <button class="why-toggle" id="whyToggle" type="button" aria-expanded="false">
@@ -567,7 +588,6 @@ html, body {
         <div class="seg" id="setUnit">
           <button data-u="bottle">Bottles</button>
           <button data-u="glass">Glasses</button>
-          <button data-u="oz">oz</button>
           <button data-u="ml">ml</button>
         </div>
       </div>
@@ -696,6 +716,7 @@ html, body {
   function normalize(s) {
     s = s || {};
     s.unit = s.unit || CONFIG.unit || 'bottle';
+    if (s.unit === 'oz') s.unit = 'ml'; // oz removed — migrate to ml
     s.bottleMl = s.bottleMl || CONFIG.bottleMl || 500;
     s.glassMl  = s.glassMl  || CONFIG.glassMl  || 250;
     s.weightUnit = s.weightUnit || 'kg';
@@ -752,19 +773,16 @@ html, body {
   function unitVolMl() {
     if (state.unit === 'bottle') return state.bottleMl || 500;
     if (state.unit === 'glass')  return state.glassMl  || 250;
-    if (state.unit === 'oz')     return 30;     // 1 fl oz ≈ 29.57 ml
-    return 1;                                   // ml
+    return 1; // ml
   }
   function unitLabelPlural() {
     if (state.unit === 'bottle') return 'bottles';
     if (state.unit === 'glass')  return 'glasses';
-    if (state.unit === 'oz')     return 'oz';
     return 'ml';
   }
   function unitLabelSingular() {
     if (state.unit === 'bottle') return 'bottle';
     if (state.unit === 'glass')  return 'glass';
-    if (state.unit === 'oz')     return 'oz';
     return 'ml';
   }
   function fmtMl(ml) {
@@ -812,6 +830,11 @@ html, body {
     else if (pctRaw < 100) { helper.textContent = (targetUnits - count) + ' to go. Pacing well.'; helper.classList.remove('good'); }
     else if (pctRaw < 130) { helper.textContent = '✓ Target hit — top up if you train this evening.'; helper.classList.add('good'); }
     else { helper.textContent = 'Strong — way past target.'; helper.classList.add('good'); }
+
+    // Toggle ml custom input vs standard plus button
+    const isMl = state.unit === 'ml';
+    $('waterPlusBtn').style.display = isMl ? 'none' : '';
+    $('mlInputRow').style.display   = isMl ? '' : 'none';
 
     // Disable minus when at zero
     $('waterMinusBtn').disabled = count <= 0;
@@ -905,8 +928,25 @@ html, body {
     btn.style.transform = 'scale(0.97)';
     setTimeout(() => { btn.style.transform = ''; }, 120);
   });
+  $('mlAddBtn').addEventListener('click', () => {
+    const amount = parseInt($('mlAmountInput').value, 10);
+    if (!amount || amount <= 0) return;
+    setTodayCount(todayCount() + amount);
+    $('mlAmountInput').value = '';
+    renderWater();
+    const btn = $('mlAddBtn');
+    btn.style.transform = 'scale(0.97)';
+    setTimeout(() => { btn.style.transform = ''; }, 120);
+  });
+  $('mlAmountInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); $('mlAddBtn').click(); }
+  });
   $('waterMinusBtn').addEventListener('click', () => {
-    setTodayCount(Math.max(0, todayCount() - 1));
+    if (state.unit === 'ml') {
+      setTodayCount(Math.max(0, todayCount() - 100));
+    } else {
+      setTodayCount(Math.max(0, todayCount() - 1));
+    }
     renderWater();
   });
 

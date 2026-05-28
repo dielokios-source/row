@@ -1497,6 +1497,10 @@ img, video, canvas, svg { max-width: 100%; }
             <button type="button" class="po-reps-pill" data-v="12">12</button>
           </div>
         </div>
+        <div class="po-field" id="secField" style="display:none">
+          <label>Sec</label>
+          <input type="number" id="secInput" step="1" min="0" inputmode="numeric" placeholder="30">
+        </div>
       </div>
       <button class="po-btn-primary" id="logBtn">Log set</button>
     </div>
@@ -1602,9 +1606,17 @@ img, video, canvas, svg { max-width: 100%; }
       <input type="checkbox" id="exBw">
       Bodyweight (track reps only, no weight)
     </label>
+    <label class="po-bw-toggle">
+      <input type="checkbox" id="exPlyos">
+      Plyos (also track seconds — weight increment still applies)
+    </label>
     <div class="po-field" id="exStartWeightField">
       <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Starting weight</label>
       <input type="number" id="exStartWeight" step="0.5" placeholder="20" value="20">
+    </div>
+    <div class="po-field" id="exStartSecField" style="display:none">
+      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Starting sec</label>
+      <input type="number" id="exStartSec" step="1" placeholder="30" value="30">
     </div>
     <div class="po-log-grid" id="exNumFields">
       <div class="po-field">
@@ -1617,7 +1629,7 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
     </div>
     <div class="po-field" id="exStepField">
-      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Increment</label>
+      <label style="font-size:11px;color:var(--text-3);font-weight:700;letter-spacing:0.04em;text-transform:uppercase">Increment (weight)</label>
       <input type="number" id="exStep" step="0.5" value="2.5">
     </div>
     <div class="po-modal-actions">
@@ -1871,7 +1883,12 @@ img, video, canvas, svg { max-width: 100%; }
       banner.classList.remove('show');
       wField.style.display = '';
       grid.classList.remove('po-bw-mode');
-      oneRmLbl.textContent = 'Est. 1RM';
+      oneRmLbl.textContent = ex && ex.plyos ? 'Best sec' : 'Est. 1RM';
+    }
+    // Show sec field for plyos exercises
+    $('secField').style.display = (ex && ex.plyos) ? '' : 'none';
+    if (ex && ex.plyos && !$('secInput').value) {
+      $('secInput').value = ex.startSec || 30;
     }
   }
   function renderLastSet() {
@@ -1882,7 +1899,10 @@ img, video, canvas, svg { max-width: 100%; }
     const logs = ex ? getLogs() : [];
     if (!ex || !logs.length) { wrap.classList.remove('show'); return; }
     const last = logs[logs.length - 1];
-    const setStr = ex.bw ? (last.reps + ' reps') : (last.weight + unit() + ' × ' + last.reps);
+    const secPart = (ex.plyos && last.sec) ? ' · ' + last.sec + 's' : '';
+    const setStr = ex.bw
+      ? (last.reps + ' reps' + secPart)
+      : (last.weight + unit() + ' × ' + last.reps + secPart);
     const d = new Date(last.date);
     const da = Math.floor((Date.now() - d.getTime()) / 86400000);
     const ago = da === 0 ? 'today' : da === 1 ? 'yesterday' : da + ' days ago';
@@ -2287,8 +2307,13 @@ img, video, canvas, svg { max-width: 100%; }
     if (reps <= 0) { alert('Pick a rep count.'); return; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
     if (!ex.bw && w <= 0) { alert('Enter a weight.'); return; }
+    const entry = { weight: w, reps: reps, date: new Date().toISOString() };
+    if (ex.plyos) {
+      const sec = parseInt($('secInput').value, 10) || 0;
+      if (sec > 0) entry.sec = sec;
+    }
     const arr = state.logs[ex.id] || [];
-    arr.push({ weight: w, reps: reps, date: new Date().toISOString() });
+    arr.push(entry);
     state.logs[ex.id] = arr;
     saveState(); renderAll();
     // Strength changed → composition estimate may shift
@@ -2336,7 +2361,9 @@ img, video, canvas, svg { max-width: 100%; }
       modalGym = ex.gym;
       modalDay = ex.day;
       $('exBw').checked = !!ex.bw;
+      $('exPlyos').checked = !!ex.plyos;
       $('exStartWeight').value = ex.startWeight || 0;
+      $('exStartSec').value = ex.startSec || 30;
       $('exRepMin').value = ex.repMin;
       $('exRepMax').value = ex.repMax;
       $('exStep').value = ex.step;
@@ -2345,7 +2372,9 @@ img, video, canvas, svg { max-width: 100%; }
       modalGym = state.filterGym;
       modalDay = state.filterDay;
       $('exBw').checked = false;
+      $('exPlyos').checked = false;
       $('exStartWeight').value = 20;
+      $('exStartSec').value = 30;
       $('exRepMin').value = 6;
       $('exRepMax').value = 8;
       $('exStep').value = 2.5;
@@ -2356,11 +2385,14 @@ img, video, canvas, svg { max-width: 100%; }
     setTimeout(() => $('exName').focus(), 60);
   }
   function toggleBwFields() {
-    const isBw = $('exBw').checked;
+    const isBw    = $('exBw').checked;
+    const isPlyos = $('exPlyos').checked;
     $('exStartWeightField').style.display = isBw ? 'none' : '';
-    $('exStepField').style.display = isBw ? 'none' : '';
+    $('exStepField').style.display        = isBw ? 'none' : '';
+    $('exStartSecField').style.display    = isPlyos ? '' : 'none';
   }
   $('exBw').addEventListener('change', toggleBwFields);
+  $('exPlyos').addEventListener('change', toggleBwFields);
   $('addExBtn').addEventListener('click', () => openExModal('add'));
   $('editExBtn').addEventListener('click', () => {
     const ex = getCurrentEx();
@@ -2372,13 +2404,16 @@ img, video, canvas, svg { max-width: 100%; }
     if (!name) { alert('Name is required.'); return; }
     if (!modalGym) { alert('Pick a gym.'); return; }
     if (!modalDay) { alert('Pick a day.'); return; }
-    const isBw = $('exBw').checked;
+    const isBw    = $('exBw').checked;
+    const isPlyos = $('exPlyos').checked;
     const repMin = parseInt($('exRepMin').value, 10) || 6;
     const repMax = parseInt($('exRepMax').value, 10) || 8;
     const data = {
       name, gym: modalGym, day: modalDay,
       bw: isBw,
+      plyos: isPlyos,
       startWeight: isBw ? 0 : (parseFloat($('exStartWeight').value) || 0),
+      startSec: isPlyos ? (parseInt($('exStartSec').value, 10) || 30) : undefined,
       repMin, repMax,
       step: isBw ? 1 : (parseFloat($('exStep').value) || 2.5)
     };
